@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="Flex" version="4">
+  <component name="FlexBuildConfigurationManager" active="starling-colortransform">
+    <configurations>
+      <configuration name="starling-colortransform" pure-as="true" main-class="Main" output-file="Main.swf" output-folder="$MODULE_DIR$/out/production/starling-colortransform">
+        <dependencies target-player="29.0">
+          <entries>
+            <entry library-name="starling" library-level="project">
+              <dependency linkage="Merged" />
+            </entry>
+            <entry library-name="minimalcomps" library-level="project">
+              <dependency linkage="Merged" />
+            </entry>
+          </entries>
+          <sdk name="Adobe AIR 29.0" />
+        </dependencies>
+        <compiler-options />
+        <packaging-air-desktop />
+        <packaging-android />
+        <packaging-ios />
+      </configuration>
+    </configurations>
+    <compiler-options />
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lib/minimalcomps/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lib/starling/starling/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lib/starling/tests" isTestSource="true" />
+    </content>
+    <orderEntry type="jdk" jdkName="Adobe AIR 29.0" jdkType="Flex SDK Type (new)" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" exported="" name="starling" level="project" />
+    <orderEntry type="library" exported="" name="minimalcomps" level="project" />
+  </component>
+</module>
