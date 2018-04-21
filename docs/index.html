@@ -41,11 +41,13 @@
             // To use express install, set to playerProductInstall.swf, otherwise the empty string. 
             var xiSwfUrlStr = "playerProductInstall.swf";
             var flashvars = {};
+            flashvars.wmode = "direct";
             var params = {};
             params.quality = "high";
             params.bgcolor = "#FFFFFF";
             params.allowscriptaccess = "sameDomain";
             params.allowfullscreen = "true";
+            params.wmode = "direct";
             var attributes = {};
             attributes.id = "Main";
             attributes.name = "Main";
