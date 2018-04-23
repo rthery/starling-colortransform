@@ -59,9 +59,17 @@ public class ColorTransformStyle extends MeshStyle {
     private function updateVertices():void {
         if (target) {
             var numVertices:int = vertexData.numVertices;
+            var redOffset:Number = MathUtil.clamp(_matrix[4], -255, 255) / 255;
+            var greenOffset:Number = MathUtil.clamp(_matrix[5], -255, 255) / 255;
+            var blueOffset:Number = MathUtil.clamp(_matrix[6], -255, 255) / 255;
+            var alphaOffset:Number = MathUtil.clamp(_matrix[7], -255, 255) / 255;
 
             // Setting alpha multiplier
-            target.alpha = MathUtil.clamp(_matrix[3], 0, 1);
+            var alpha : Number = MathUtil.clamp(_matrix[3], 0, 1);
+            if (alpha == 0 && alphaOffset > 0) {
+                alpha = 0.01; // To avoid Starling optimisation of not rendering the target
+            }
+            target.alpha = alpha;
 
             // Setting color multipliers
             var color:uint = Color.rgb(
@@ -71,10 +79,6 @@ public class ColorTransformStyle extends MeshStyle {
             vertexData.colorize("color", color, 1, 0, numVertices);
 
             // Setting color offsets
-            var redOffset:Number = MathUtil.clamp(_matrix[4], -255, 255) / 255;
-            var greenOffset:Number = MathUtil.clamp(_matrix[5], -255, 255) / 255;
-            var blueOffset:Number = MathUtil.clamp(_matrix[6], -255, 255) / 255;
-            var alphaOffset:Number = MathUtil.clamp(_matrix[7], -255, 255) / 255;
             for (var i:int = 0; i < numVertices; ++i) {
                 vertexData.setPoint4D(i, "offset", redOffset, greenOffset, blueOffset, alphaOffset);
             }
@@ -212,7 +216,7 @@ class ColorTransformEffect extends MeshEffect {
     override protected function createProgram():Program {
         var vertexShader:String, fragmentShader:String;
         var multipliersAndOffsets:String = [
-//            "max ft0, ft0, fc2",                // avoid division through zero in next step
+            //"max ft0, ft0, fc2",              // avoid division through zero in next step // Disable because of alpha artifact with offset
             "div ft0.xyz, ft0.xyz, ft0.www",    // restore original (non-PMA) RGB values
 
             "mov ft1, v1",                      // move color multipliers (v1) before reverting PMA
@@ -220,7 +224,11 @@ class ColorTransformEffect extends MeshEffect {
             "div ft1.xyz, ft1.xyz, ft1.www",    // restore original (non-PMA) RGB values
             "mul ft0, ft0, ft1",                // apply color multipliers to texel color
 
-            "add ft0, ft0, v2",                 // apply color offsets to texel color
+            "add ft0.xyz, ft0.xyz, v2.xyz",     // apply rgb offsets to texel rgb
+            "mov ft4, fc1",
+            "sge ft4.w, ft0.w, fc2.w",          // If ft2.w > 0, then we'll add the alpha offset
+            "mul ft4.w, ft4.w, v2.w",           // We multiply our alpha offset to the result of the previous check
+            "add ft0.w, ft0.w, ft4.w",          // apply alpha offset to alpha
 
             "min ft0, ft0, fc1",                // colorTransform channel values can't go above 1
             "max ft0, ft0, fc0",                // colorTransform channel values can't go under 0
