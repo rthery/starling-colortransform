@@ -203,6 +203,8 @@ class ColorTransformEffect extends MeshEffect {
 
     private static const MIN_COLOR:Vector.<Number> = new <Number>[0, 0, 0, 0];
     private static const MAX_COLOR:Vector.<Number> = new <Number>[1, 1, 1, 1];
+    private static const MIN_COLOR_PMA:Vector.<Number> = new <Number>[0, 0, 0, 0.0001];
+
 
     public function ColorTransformEffect():void {
     }
@@ -210,20 +212,28 @@ class ColorTransformEffect extends MeshEffect {
     override protected function createProgram():Program {
         var vertexShader:String, fragmentShader:String;
         var multipliersAndOffsets:String = [
-            "mul ft0, ft0, v1",                 // apply color multipliers (v1) to texel color
-            "mov ft2, v2",                      // move color offsets (v2) before PMA
-            "mul ft2.xyz, ft2.xyz, ft0.www",    // apply PMA to color offsets
-            "add ft0.xyz, ft0.xyz, ft2.xyz",    // apply color offsets to texel color
-            "min ft0, ft0, fc0",                // colorTransform channel values can't go above 1
-            "max ft0, ft0, fc1",                // colorTransform channel values can't go under 0
+//            "max ft0, ft0, fc2",                // avoid division through zero in next step
+            "div ft0.xyz, ft0.xyz, ft0.www",    // restore original (non-PMA) RGB values
+
+            "mov ft1, v1",                      // move color multipliers (v1) before reverting PMA
+            "max ft1, ft1, fc2",                // avoid division through zero in next step
+            "div ft1.xyz, ft1.xyz, ft1.www",    // restore original (non-PMA) RGB values
+            "mul ft0, ft0, ft1",                // apply color multipliers to texel color
+
+            "add ft0, ft0, v2",                 // apply color offsets to texel color
+
+            "min ft0, ft0, fc1",                // colorTransform channel values can't go above 1
+            "max ft0, ft0, fc0",                // colorTransform channel values can't go under 0
+
+            "mul ft0.xyz, ft0.xyz, ft0.www",    // multiply with alpha again (PMA)
             "mov oc, ft0"                       // copy to output
         ].join("\n");
 
         if (texture) {
             vertexShader = [
                 "m44 op, va0, vc0",     // 4x4 matrix transform to output clip-space
-                "mov v0, va1     ",     // pass texture coordinates to fragment shader
-                "mul v1, va2, vc4",     // multiply alpha (vc4) with color (va2), pass to fragment shader
+                "mov v0, va1",          // pass texture coordinates to fragment shader
+                "mov v1, va2",          // pass color multipliers to fragment shader
                 "mov v2, va3"           // pass color offsets to fragment shader
             ].join("\n");
 
@@ -236,7 +246,7 @@ class ColorTransformEffect extends MeshEffect {
             vertexShader = [
                 "m44 op, va0, vc0", // 4x4 matrix transform to output clipspace
                 "mul v0, va2, vc4", // multiply alpha (vc4) with color (va2)
-                "mov v2, va3     "  // pass offset to fragment shader
+                "mov v2, va3"       // pass offset to fragment shader
             ].join("\n");
 
             fragmentShader = [
@@ -257,8 +267,9 @@ class ColorTransformEffect extends MeshEffect {
 
         vertexFormat.setVertexBufferAt(3, vertexBuffer, "offset");
 
-        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 0, MAX_COLOR, 1);
-        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 1, MIN_COLOR, 1);
+        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 0, MIN_COLOR, 1);
+        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 1, MAX_COLOR, 1);
+        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 2, MIN_COLOR_PMA, 1);
     }
 
     override protected function afterDraw(context:Context3D):void {
