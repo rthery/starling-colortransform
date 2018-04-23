@@ -5,10 +5,10 @@
       <configuration name="starling-colortransform" pure-as="true" main-class="Main" output-file="Main.swf" output-folder="$MODULE_DIR$/out/production/starling-colortransform">
         <dependencies target-player="29.0">
           <entries>
-            <entry library-name="starling" library-level="project">
+            <entry library-id="e56245af-8884-47b3-900d-ef378e6941af">
               <dependency linkage="Merged" />
             </entry>
-            <entry library-name="minimalcomps" library-level="project">
+            <entry library-id="104034eb-4faf-4ee0-a2c1-168f2c0074d5">
               <dependency linkage="Merged" />
             </entry>
           </entries>
@@ -34,5 +34,25 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="starling" level="project" />
     <orderEntry type="library" exported="" name="minimalcomps" level="project" />
+    <orderEntry type="module-library" exported="">
+      <library type="flex">
+        <properties id="e56245af-8884-47b3-900d-ef378e6941af" />
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/lib/starling/starling/src" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library type="flex">
+        <properties id="104034eb-4faf-4ee0-a2c1-168f2c0074d5" />
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/lib/minimalcomps/src" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
