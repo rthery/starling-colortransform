@@ -205,10 +205,7 @@ import starling.rendering.VertexDataFormat;
 class ColorTransformEffect extends MeshEffect {
     public static const VERTEX_FORMAT:VertexDataFormat = ColorTransformStyle.VERTEX_FORMAT;
 
-    private static const MIN_COLOR:Vector.<Number> = new <Number>[0, 0, 0, 0];
-    private static const MAX_COLOR:Vector.<Number> = new <Number>[1, 1, 1, 1];
-    private static const MIN_COLOR_PMA:Vector.<Number> = new <Number>[0, 0, 0.001, 0.0001];
-
+    private static const COLOR_CONSTANTS:Vector.<Number> = new <Number>[0, 0.01, 0.0001, 1];
 
     public function ColorTransformEffect():void {
     }
@@ -216,22 +213,22 @@ class ColorTransformEffect extends MeshEffect {
     override protected function createProgram():Program {
         var vertexShader:String, fragmentShader:String;
         var multipliersAndOffsets:String = [
-            "max ft0, ft0, fc2",                // avoid division through zero in next step // Disable because of alpha artifact with offset
+            "max ft0.xyzw, ft0.xyzw, fc0.xxxz", // avoid division through zero in next step // Disable because of alpha artifact with offset
             "div ft0.xyz, ft0.xyz, ft0.www",    // restore original (non-PMA) RGB values
 
             "mov ft1, v1",                      // move color multipliers (v1) before reverting PMA
-            "max ft1, ft1, fc2",                // avoid division through zero in next step
+            "max ft1.xyzw, ft1.xyzw, fc0.xxxz", // avoid division through zero in next step
             "div ft1.xyz, ft1.xyz, ft1.www",    // restore original (non-PMA) RGB values
             "mul ft0, ft0, ft1",                // apply color multipliers to texel color
 
             "add ft0.xyz, ft0.xyz, v2.xyz",     // apply rgb offsets to texel rgb
-            "mov ft4, fc1",
-            "sge ft4.w, ft0.w, fc2.z",          // If ft2.w > 0, then we'll add the alpha offset
+            "mov ft4.xyzw, fc0.xxxz",
+            "sge ft4.w, ft0.w, fc0.y",          // If ft2.w > 0, then we'll add the alpha offset
             "mul ft4.w, ft4.w, v2.w",           // We multiply our alpha offset to the result of the previous check
             "add ft0.w, ft0.w, ft4.w",          // apply alpha offset to alpha
 
-            "min ft0, ft0, fc1",                // colorTransform channel values can't go above 1
-            "max ft0, ft0, fc0",                // colorTransform channel values can't go under 0
+            "min ft0.xyzw, ft0.xyzw, fc0.wwww", // colorTransform channel values can't go above 1
+            "max ft0.xyzw, ft0.xyzw, fc0.xxxx", // colorTransform channel values can't go under 0
 
             "mul ft0.xyz, ft0.xyz, ft0.www",    // multiply with alpha again (PMA)
             "mov oc, ft0"                       // copy to output
@@ -275,9 +272,7 @@ class ColorTransformEffect extends MeshEffect {
 
         vertexFormat.setVertexBufferAt(3, vertexBuffer, "offset");
 
-        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 0, MIN_COLOR, 1);
-        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 1, MAX_COLOR, 1);
-        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 2, MIN_COLOR_PMA, 1);
+        context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 0, COLOR_CONSTANTS, 1);
     }
 
     override protected function afterDraw(context:Context3D):void {
