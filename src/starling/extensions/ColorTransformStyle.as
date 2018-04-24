@@ -207,7 +207,7 @@ class ColorTransformEffect extends MeshEffect {
 
     private static const MIN_COLOR:Vector.<Number> = new <Number>[0, 0, 0, 0];
     private static const MAX_COLOR:Vector.<Number> = new <Number>[1, 1, 1, 1];
-    private static const MIN_COLOR_PMA:Vector.<Number> = new <Number>[0, 0, 0, 0.0001];
+    private static const MIN_COLOR_PMA:Vector.<Number> = new <Number>[0, 0, 0.001, 0.0001];
 
 
     public function ColorTransformEffect():void {
@@ -216,7 +216,7 @@ class ColorTransformEffect extends MeshEffect {
     override protected function createProgram():Program {
         var vertexShader:String, fragmentShader:String;
         var multipliersAndOffsets:String = [
-            //"max ft0, ft0, fc2",              // avoid division through zero in next step // Disable because of alpha artifact with offset
+            "max ft0, ft0, fc2",                // avoid division through zero in next step // Disable because of alpha artifact with offset
             "div ft0.xyz, ft0.xyz, ft0.www",    // restore original (non-PMA) RGB values
 
             "mov ft1, v1",                      // move color multipliers (v1) before reverting PMA
@@ -226,7 +226,7 @@ class ColorTransformEffect extends MeshEffect {
 
             "add ft0.xyz, ft0.xyz, v2.xyz",     // apply rgb offsets to texel rgb
             "mov ft4, fc1",
-            "sge ft4.w, ft0.w, fc2.w",          // If ft2.w > 0, then we'll add the alpha offset
+            "sge ft4.w, ft0.w, fc2.z",          // If ft2.w > 0, then we'll add the alpha offset
             "mul ft4.w, ft4.w, v2.w",           // We multiply our alpha offset to the result of the previous check
             "add ft0.w, ft0.w, ft4.w",          // apply alpha offset to alpha
 
