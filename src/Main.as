@@ -16,6 +16,7 @@ public class Main extends Sprite {
 
         var starling:Starling = new Starling(ColorTransformComparator, stage);
         starling.skipUnchangedFrames = true;
+        starling.enableErrorChecking = true;
         starling.start();
     }
 }
