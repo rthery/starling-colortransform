@@ -4,11 +4,10 @@ import starling.rendering.MeshEffect;
 import starling.rendering.VertexDataFormat;
 import starling.styles.MeshStyle;
 import starling.utils.Color;
-import starling.utils.MathUtil;
 import starling.utils.StringUtil;
 
 public class ColorTransformStyle extends MeshStyle {
-    public static const VERTEX_FORMAT:VertexDataFormat = MeshStyle.VERTEX_FORMAT.extend("offset:float4");
+    public static const VERTEX_FORMAT:VertexDataFormat = MeshStyle.VERTEX_FORMAT.extend("multipliers:float4,offsets:float4");
 
     private var _matrix:Vector.<Number>;
 
@@ -59,28 +58,15 @@ public class ColorTransformStyle extends MeshStyle {
     private function updateVertices():void {
         if (target) {
             var numVertices:int = vertexData.numVertices;
-            var redOffset:Number = MathUtil.clamp(_matrix[4], -255, 255) / 255;
-            var greenOffset:Number = MathUtil.clamp(_matrix[5], -255, 255) / 255;
-            var blueOffset:Number = MathUtil.clamp(_matrix[6], -255, 255) / 255;
-            var alphaOffset:Number = MathUtil.clamp(_matrix[7], -255, 255) / 255;
+            var redOffset:Number = _matrix[4] / 255;
+            var greenOffset:Number = _matrix[5] / 255;
+            var blueOffset:Number = _matrix[6] / 255;
+            var alphaOffset:Number = _matrix[7] / 255;
 
-            // Setting alpha multiplier
-            var alpha : Number = MathUtil.clamp(_matrix[3], 0, 1);
-            if (alpha == 0 && alphaOffset > 0) {
-                alpha = 0.01; // To avoid Starling optimisation of not rendering the target
-            }
-            target.alpha = alpha;
-
-            // Setting color multipliers
-            var color:uint = Color.rgb(
-                    MathUtil.clamp(_matrix[0], 0, 1) * 255,
-                    MathUtil.clamp(_matrix[1], 0, 1) * 255,
-                    MathUtil.clamp(_matrix[2], 0, 1) * 255);
-            vertexData.colorize("color", color, 1, 0, numVertices);
-
-            // Setting color offsets
+            // Setting color multipliers and offsets
             for (var i:int = 0; i < numVertices; ++i) {
-                vertexData.setPoint4D(i, "offset", redOffset, greenOffset, blueOffset, alphaOffset);
+                vertexData.setPoint4D(i, "multipliers", _matrix[0], _matrix[1], _matrix[2], _matrix[3]);
+                vertexData.setPoint4D(i, "offsets", redOffset, greenOffset, blueOffset, alphaOffset);
             }
 
             setRequiresRedraw();
@@ -216,16 +202,13 @@ class ColorTransformEffect extends MeshEffect {
             "max ft0.xyzw, ft0.xyzw, fc0.xxxz", // avoid division through zero in next step // Disable because of alpha artifact with offset
             "div ft0.xyz, ft0.xyz, ft0.www",    // restore original (non-PMA) RGB values
 
-            "mov ft1, v1",                      // move color multipliers (v1) before reverting PMA
-            "max ft1.xyzw, ft1.xyzw, fc0.xxxz", // avoid division through zero in next step
-            "div ft1.xyz, ft1.xyz, ft1.www",    // restore original (non-PMA) RGB values
-            "mul ft0, ft0, ft1",                // apply color multipliers to texel color
+            "mul ft0, ft0, v2",                 // apply color multipliers to texel color
 
-            "add ft0.xyz, ft0.xyz, v2.xyz",     // apply rgb offsets to texel rgb
-            "mov ft4.xyzw, fc0.xxxz",
+            "add ft0.xyz, ft0.xyz, v3.xyz",     // apply rgb offsets to texel rgb
+            "mov ft4.w, fc0.z",                 // prepare ft4 to store our alpha offset during operations
             "sge ft4.w, ft0.w, fc0.y",          // If ft2.w > 0, then we'll add the alpha offset
-            "mul ft4.w, ft4.w, v2.w",           // We multiply our alpha offset to the result of the previous check
-            "add ft0.w, ft0.w, ft4.w",          // apply alpha offset to alpha
+            "mul ft4.w, ft4.w, v3.w",           // We multiply our alpha offset to the result of the previous check
+            "add ft0.w, ft0.w, ft4.w",          // apply alpha offset to texel alpha
 
             "min ft0.xyzw, ft0.xyzw, fc0.wwww", // colorTransform channel values can't go above 1
             "max ft0.xyzw, ft0.xyzw, fc0.xxxx", // colorTransform channel values can't go under 0
@@ -238,8 +221,9 @@ class ColorTransformEffect extends MeshEffect {
             vertexShader = [
                 "m44 op, va0, vc0",     // 4x4 matrix transform to output clip-space
                 "mov v0, va1",          // pass texture coordinates to fragment shader
-                "mov v1, va2",          // pass color multipliers to fragment shader
-                "mov v2, va3"           // pass color offsets to fragment shader
+                "mul v1, va2, vc4",     // multiply alpha (vc4) with color (va2), unused with texture
+                "mov v2, va3",          // pass multipliers to fragment shader
+                "mov v3, va4"           // pass offsets to fragment shader
             ].join("\n");
 
             fragmentShader = [
@@ -251,7 +235,8 @@ class ColorTransformEffect extends MeshEffect {
             vertexShader = [
                 "m44 op, va0, vc0", // 4x4 matrix transform to output clipspace
                 "mul v0, va2, vc4", // multiply alpha (vc4) with color (va2)
-                "mov v2, va3"       // pass offset to fragment shader
+                "mov v2, va3",      // pass multipliers to fragment shader
+                "mov v3, va4"       // pass offsets to fragment shader
             ].join("\n");
 
             fragmentShader = [
@@ -260,6 +245,8 @@ class ColorTransformEffect extends MeshEffect {
             ].join("\n");
         }
 
+        trace(vertexShader);
+        trace(fragmentShader);
         return Program.fromSource(vertexShader, fragmentShader);
     }
 
@@ -270,13 +257,15 @@ class ColorTransformEffect extends MeshEffect {
     override protected function beforeDraw(context:Context3D):void {
         super.beforeDraw(context);
 
-        vertexFormat.setVertexBufferAt(3, vertexBuffer, "offset");
+        vertexFormat.setVertexBufferAt(3, vertexBuffer, "multipliers");
+        vertexFormat.setVertexBufferAt(4, vertexBuffer, "offsets");
 
         context.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, 0, COLOR_CONSTANTS, 1);
     }
 
     override protected function afterDraw(context:Context3D):void {
         context.setVertexBufferAt(3, null);
+        context.setVertexBufferAt(4, null);
 
         super.afterDraw(context);
     }
