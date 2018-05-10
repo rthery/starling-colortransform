@@ -245,8 +245,6 @@ class ColorTransformEffect extends MeshEffect {
             ].join("\n");
         }
 
-        trace(vertexShader);
-        trace(fragmentShader);
         return Program.fromSource(vertexShader, fragmentShader);
     }
 
